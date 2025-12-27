@@ -1,0 +1,2 @@
+Django>=5.0.0 #The core framework used for the ORM, project settings, and database management commands (manage.py).
+Pillow>=10.0.0 #Strictly required because User model in users/models.py uses models.ImageField for the avatar. Django throws an error if ImageField is used without Pillow installed.
