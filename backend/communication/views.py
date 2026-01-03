@@ -236,32 +236,32 @@ class ClinicalSummaryView(APIView):
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
 
-# backend/communication/views.py
-
 def setup_database(request):
-    # 1. Create the specific user 'Paras'
-    if not User.objects.filter(username='Paras').exists():
-        user = User.objects.create_user('Paras', 'paras@gmail.com', '123456')
-        msg_user = "User 'Paras' created successfully."
-        
-        # 2. Link a Patient Profile to Paras (CRITICAL for Dashboard)
-        # Import PatientProfile from wherever it is defined (e.g. patients.models)
-        from patients.models import PatientProfile 
-        
-        PatientProfile.objects.create(
-            user=user,
-            caregiver_name="Mom",
-            medical_conditions="None",
-            current_status="Stable",
-            current_mood="Happy"
-        )
-        msg_profile = "Patient Profile for 'Paras' created."
+    # 1. Create Superuser (if not exists)
+    if not User.objects.filter(username='admin').exists():
+        User.objects.create_superuser('admin', 'admin@example.com', 'admin123')
+        admin_msg = "Superuser 'admin' created (password: admin123)."
     else:
-        msg_user = "User 'Paras' already exists."
-        msg_profile = "Profile already exists."
+        admin_msg = "Superuser 'admin' already exists."
+
+    # 2. Create Patient User (if not exists)
+    if not User.objects.filter(username='patient1').exists():
+        p_user = User.objects.create_user('patient1', 'patient@example.com', 'patient123')
+        
+        # 3. Create Patient Profile for ID #1 (or whatever ID connects to it)
+        PatientProfile.objects.create(
+            user=p_user,
+            caregiver_name="Sarah",
+            medical_conditions="Hypertension",
+            current_status="Stable",
+            current_mood="Neutral"
+        )
+        patient_msg = "Patient 'patient1' and Profile created."
+    else:
+        patient_msg = "Patient 'patient1' already exists."
 
     return JsonResponse({
-        "status": "success",
-        "user_action": msg_user,
-        "profile_action": msg_profile
+        "status": "success", 
+        "admin": admin_msg, 
+        "patient": patient_msg
     })
