@@ -1,2 +1,17 @@
-Django>=5.0.0 #The core framework used for the ORM, project settings, and database management commands (manage.py).
-Pillow>=10.0.0 #Strictly required because User model in users/models.py uses models.ImageField for the avatar. Django throws an error if ImageField is used without Pillow installed.
+# --- Core Framework ---
+Django>=5.0.0
+djangorestframework
+django-cors-headers
+
+# --- Image Handling (Required for User Avatars) ---
+Pillow>=10.0.0
+
+# --- Security & Config ---
+python-dotenv          # Required to read .env files for API keys
+
+# --- AI & Speech Services ---
+azure-cognitiveservices-speech  # Required for your Voice-to-Text feature
+google-generativeai             # Required for Gemini Chat and Clinical Summaries
+
+# --- Deployment (Render) ---
+gunicorn               # Required! This is the production server Render uses to run Django

@@ -3,9 +3,7 @@ from django.urls import path, include
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-
-    # app routes
-    path('api/users/', include('users.urls')),
-    path('api/patients/', include('patients.urls')),
     path('api/communication/', include('communication.urls')),
+    path('api/patients/', include('patients.urls')),
+    # Users API can be added similarly if needed
 ]

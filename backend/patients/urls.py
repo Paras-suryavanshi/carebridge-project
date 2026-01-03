@@ -1,9 +1,11 @@
-from django.urls import path
-from . import views
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+from .views import PatientViewSet, VitalSignViewSet
+
+router = DefaultRouter()
+router.register(r'profiles', PatientViewSet)
+router.register(r'vitals', VitalSignViewSet)
 
 urlpatterns = [
-    #Api part
-    path('vitals/', views.patient_vitals, name='vitals'),
-    path('medications/', views.patient_medications, name='medications'),
-    path('alerts/', views.patient_alerts, name='alerts'),
+    path('', include(router.urls)),
 ]

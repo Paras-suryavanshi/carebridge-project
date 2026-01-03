@@ -1,9 +1,16 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:animate_do/animate_do.dart';
 import 'dart:math' as math;
 import '../../constants/colors.dart';
 import '../../constants/strings.dart';
 import '../../models/message_model.dart';
+import 'package:record/record.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class CareAIScreen extends StatefulWidget {
   const CareAIScreen({super.key});
@@ -14,6 +21,9 @@ class CareAIScreen extends StatefulWidget {
 
 class _CareAIScreenState extends State<CareAIScreen>
     with TickerProviderStateMixin {
+  final AudioRecorder _audioRecorder = AudioRecorder();
+  List<int> _audioBytes = []; // Store audio data in memory (for Web)
+  StreamSubscription? _audioStreamSubscription;
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   AnimationController? _pulseController;
@@ -51,12 +61,14 @@ class _CareAIScreenState extends State<CareAIScreen>
     _scrollController.dispose();
     _pulseController?.dispose();
     _micController?.dispose();
+    _audioRecorder.dispose();
     super.dispose();
   }
 
-  void _sendMessage(String text) {
+  Future<void> _sendMessage(String text) async {
     if (text.trim().isEmpty) return;
 
+    // 1. Add User Message to UI immediately
     setState(() {
       _messages.add(
         MessageModel(
@@ -65,52 +77,166 @@ class _CareAIScreenState extends State<CareAIScreen>
             isUser: true,
             timestamp: DateTime.now()),
       );
-      _isTyping = true;
+      _isTyping = true; // Show typing indicator
     });
 
     _messageController.clear();
     _scrollToBottom();
 
-    // Simulate AI response with typing indicator
-    Future.delayed(const Duration(seconds: 2), () {
+    try {
+      // 2. Define your Backend URL
+      // If using Android Emulator, use 'http://10.0.2.2:8000/api/communication/chat/'
+      // If using Web/iOS/Physical Device, use 'http://YOUR_PC_IP_ADDRESS:8000/api/communication/chat/'
+      // For local browser testing:
+      const String apiUrl = 'http://127.0.0.1:8000/api/communication/chat/';
+
+      // 3. Send Request to Django
+      final response = await http.post(
+        Uri.parse(apiUrl),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'content': text,
+          'user': 1, // Hardcoded user ID for hackathon (assuming user 1 exists)
+        }),
+      );
+
+      if (response.statusCode == 201) {
+        // 4. Parse Real AI Response
+        final data = jsonDecode(response.body);
+        final aiResponseText = data['ai_response']; // We sent this key from Django view
+
+        if (!mounted) return;
+        setState(() {
+          _isTyping = false;
+          _messages.add(
+            MessageModel(
+              id: DateTime.now().millisecondsSinceEpoch.toString(),
+              content: aiResponseText, // The actual Gemini response
+              isUser: false,
+              timestamp: DateTime.now(),
+            ),
+          );
+        });
+        _scrollToBottom();
+        
+      } else {
+        throw Exception('Failed to load response');
+      }
+    } catch (e) {
+      // Handle Errors
       if (!mounted) return;
       setState(() {
         _isTyping = false;
         _messages.add(
           MessageModel(
             id: DateTime.now().millisecondsSinceEpoch.toString(),
-            content:
-                'Thank you for sharing your concern. I understand you mentioned: "$text"\n\nBased on your health profile, here are my recommendations:\n\n✓ Monitor your vitals regularly\n✓ Stay hydrated\n✓ Take prescribed medications on time\n\nWould you like me to schedule a check-up with your doctor?',
+            content: "Error: Could not connect to Care AI server. (${e.toString()})",
             isUser: false,
             timestamp: DateTime.now(),
           ),
         );
       });
       _scrollToBottom();
-    });
+    }
   }
 
-  void _toggleListening() {
-    setState(() {
-      _isListening = !_isListening;
-    });
+  // --- NEW WEB-COMPATIBLE LISTENING FUNCTION ---
+  Future<void> _toggleListening() async {
+    try {
+      if (_isListening) {
+        // === STOP RECORDING ===
+        setState(() => _isListening = false);
+        _micController?.reverse();
 
-    if (_isListening) {
-      _micController?.forward();
-      // TODO: Implement actual speech recognition here
-      // For now, simulate voice input
-      Future.delayed(const Duration(seconds: 3), () {
-        if (_isListening && mounted) {
-          _sendMessage(
-              'I have been feeling a bit tired lately and my blood pressure seems high');
-          setState(() {
-            _isListening = false;
-          });
-          _micController?.reverse();
+        // 1. Stop recording and get the Blob URL
+        final path = await _audioRecorder.stop();
+
+        if (path != null) {
+          // 2. Fetch the audio bytes from the Blob URL
+          // On Web, 'path' is a blob URL like "blob:http://localhost..."
+          // We can "download" the bytes from our own browser memory.
+          final response = await http.get(Uri.parse(path));
+          
+          if (response.statusCode == 200) {
+            _uploadAudioBytes(response.bodyBytes);
+          }
         }
-      });
-    } else {
-      _micController?.reverse();
+
+      } else {
+        // === START RECORDING ===
+        // Check permission
+        if (await _audioRecorder.hasPermission()) {
+          setState(() => _isListening = true);
+          _micController?.forward();
+
+          // 3. Start Recording (Standard Mode)
+          // We pass an empty path ('') to let the browser create a Blob automatically.
+          await _audioRecorder.start(
+            const RecordConfig(encoder: AudioEncoder.wav),
+            path: '', 
+          );
+          
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Microphone permission required')),
+          );
+        }
+      }
+    } catch (e) {
+      print('Audio Error: $e');
+      setState(() => _isListening = false);
+    }
+  }
+
+  // --- NEW UPLOAD FUNCTION (HANDLES BYTES) ---
+  Future<void> _uploadAudioBytes(List<int> bytes) async {
+    // Show loading state
+    _messageController.text = "Transcribing...";
+    
+    try {
+      // 1. Define Backend URL
+      // Use 127.0.0.1 for Web, 10.0.2.2 for Android Emulator
+      const String apiUrl = 'http://127.0.0.1:8000/api/communication/transcribe/';
+      
+      var uri = Uri.parse(apiUrl); 
+      var request = http.MultipartRequest('POST', uri);
+      
+      // 2. Attach Audio Data from Memory
+      // Note: We use 'fromBytes' instead of 'fromPath'
+      // Filename is vital for the backend to know how to handle it. 
+      // 'audio.wav' is safe for PCM16bit.
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'audio', 
+          bytes, 
+          filename: 'audio.wav' 
+        )
+      );
+
+      // 3. Send
+      var streamedResponse = await request.send();
+      var response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final transcript = data['transcript'];
+        
+        setState(() {
+          _messageController.text = transcript;
+        });
+        
+        // Optional: Auto-send after a delay
+        // Future.delayed(Duration(seconds: 1), () => _sendMessage(transcript));
+        
+      } else {
+        print("Backend Error: ${response.body}");
+        _messageController.text = "Error: Transcription failed";
+      }
+    } catch (e) {
+      _messageController.text = "Error: Connection failed";
+      print("Connection Error: $e");
     }
   }
 

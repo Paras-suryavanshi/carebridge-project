@@ -9,7 +9,12 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-
+  
+  # 'http' must be aligned with 'flutter', not 'sdk'
+  http: ^1.2.0
+  record: ^5.1.0
+  path_provider: ^2.1.2
+  permission_handler: ^11.3.0
   # UI & Design
   cupertino_icons: ^1.0.6
   google_fonts: ^6.1.0
@@ -28,8 +33,3 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  
-  assets:
-    - assets/images/
-    - assets/icons/
-    - assets/animations/

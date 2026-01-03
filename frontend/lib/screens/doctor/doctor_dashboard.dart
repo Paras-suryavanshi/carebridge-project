@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:animate_do/animate_do.dart';
+import 'package:http/http.dart' as http; // <--- Added for API
 import '../../constants/colors.dart';
 import '../../constants/strings.dart';
 import '../../config/routes.dart';
@@ -16,25 +18,60 @@ class DoctorDashboard extends StatefulWidget {
 class _DoctorDashboardState extends State<DoctorDashboard> {
   int _selectedIndex = 0;
 
+  // --- NEW STATE VARIABLES FOR AI SUMMARY ---
+  bool _isLoadingSummary = true;
+  String _summary = "Loading patient data...";
+  String _lastUpdated = "";
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchClinicalSummary(); // <--- Fetch data when screen loads
+  }
+
+  // --- NEW FUNCTION TO FETCH SUMMARY ---
+  Future<void> _fetchClinicalSummary() async {
+    try {
+      // Use 127.0.0.1 for Web, 10.0.2.2 for Android Emulator
+      final response = await http.get(
+        Uri.parse('http://127.0.0.1:8000/api/communication/summary/1/'),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (mounted) {
+          setState(() {
+            _summary = data['summary'];
+            _lastUpdated = DateTime.now().toString().substring(0, 16);
+            _isLoadingSummary = false;
+          });
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _summary = "No recent patient activity to summarize.";
+            _isLoadingSummary = false;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _summary = "System Notice: Unable to connect to Care AI server.";
+          _isLoadingSummary = false;
+        });
+      }
+    }
+  }
+
   void _onMenuItemTap(int index) {
     setState(() => _selectedIndex = index);
-
     switch (index) {
-      case 0:
-        // Already on dashboard
-        break;
-      case 1:
-        Navigator.pushNamed(context, AppRoutes.doctorPatients);
-        break;
-      case 2:
-        Navigator.pushNamed(context, AppRoutes.callLogs);
-        break;
-      case 3:
-        Navigator.pushNamed(context, AppRoutes.analytics);
-        break;
-      case 4:
-        Navigator.pushNamed(context, AppRoutes.alerts);
-        break;
+      case 0: break;
+      case 1: Navigator.pushNamed(context, AppRoutes.doctorPatients); break;
+      case 2: Navigator.pushNamed(context, AppRoutes.callLogs); break;
+      case 3: Navigator.pushNamed(context, AppRoutes.analytics); break;
+      case 4: Navigator.pushNamed(context, AppRoutes.alerts); break;
     }
   }
 
@@ -59,10 +96,7 @@ class _DoctorDashboardState extends State<DoctorDashboard> {
                         children: [
                           Text(
                             AppStrings.welcomeDoctor,
-                            style: Theme.of(context)
-                                .textTheme
-                                .headlineSmall
-                                ?.copyWith(
+                            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                                   fontWeight: FontWeight.bold,
                                   color: AppColors.textPrimary,
                                 ),
@@ -70,10 +104,7 @@ class _DoctorDashboardState extends State<DoctorDashboard> {
                           const SizedBox(height: 4),
                           Text(
                             AppStrings.monitorPatients,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
-                                ?.copyWith(
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                   color: AppColors.textSecondary,
                                 ),
                           ),
@@ -138,6 +169,14 @@ class _DoctorDashboardState extends State<DoctorDashboard> {
               ),
               const SizedBox(height: 32),
 
+              // --- NEW AI SUMMARY CARD SECTION ---
+              FadeInUp(
+                 duration: const Duration(milliseconds: 600),
+                 delay: const Duration(milliseconds: 300),
+                 child: _buildSummaryCard(),
+              ),
+              const SizedBox(height: 32),
+
               // Charts Row
               FadeInUp(
                 duration: const Duration(milliseconds: 600),
@@ -150,7 +189,7 @@ class _DoctorDashboardState extends State<DoctorDashboard> {
                   ],
                 ),
               ),
-              const SizedBox(height: 80), // Space for bottom nav
+              const SizedBox(height: 80), 
             ],
           ),
         ),
@@ -159,6 +198,67 @@ class _DoctorDashboardState extends State<DoctorDashboard> {
     );
   }
 
+  // --- NEW WIDGET: AI SUMMARY CARD ---
+  Widget _buildSummaryCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.primary.withOpacity(0.2)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withOpacity(0.05), 
+            blurRadius: 10,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.auto_awesome, color: AppColors.primary, size: 20),
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                "Patient Focus: John Doe (ID #001)",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              const Spacer(),
+              if (_isLoadingSummary) 
+                const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+            ],
+          ),
+          const Divider(height: 30),
+          Text(
+            _summary,
+            style: const TextStyle(
+              fontSize: 15,
+              height: 1.5,
+              color: Color(0xFF2D3748),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            _lastUpdated.isEmpty ? "" : "Generated at $_lastUpdated",
+            style: TextStyle(color: Colors.grey[400], fontSize: 11),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ... (Keep existing _buildBottomNavigationBar, _buildNavItem, _buildMetricCard, etc.) ...
+  
   Widget _buildBottomNavigationBar() {
     return Container(
       decoration: BoxDecoration(
@@ -177,31 +277,11 @@ class _DoctorDashboardState extends State<DoctorDashboard> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildNavItem(
-                icon: Icons.home_rounded,
-                label: 'Home',
-                index: 0,
-              ),
-              _buildNavItem(
-                icon: Icons.people,
-                label: 'Patients',
-                index: 1,
-              ),
-              _buildNavItem(
-                icon: Icons.call,
-                label: 'Calls',
-                index: 2,
-              ),
-              _buildNavItem(
-                icon: Icons.analytics,
-                label: 'Analytics',
-                index: 3,
-              ),
-              _buildNavItem(
-                icon: Icons.notifications,
-                label: 'Alerts',
-                index: 4,
-              ),
+              _buildNavItem(icon: Icons.home_rounded, label: 'Home', index: 0),
+              _buildNavItem(icon: Icons.people, label: 'Patients', index: 1),
+              _buildNavItem(icon: Icons.call, label: 'Calls', index: 2),
+              _buildNavItem(icon: Icons.analytics, label: 'Analytics', index: 3),
+              _buildNavItem(icon: Icons.notifications, label: 'Alerts', index: 4),
             ],
           ),
         ),
@@ -215,7 +295,6 @@ class _DoctorDashboardState extends State<DoctorDashboard> {
     required int index,
   }) {
     final isSelected = _selectedIndex == index;
-
     return InkWell(
       onTap: () => _onMenuItemTap(index),
       borderRadius: BorderRadius.circular(12),
@@ -292,9 +371,7 @@ class _DoctorDashboardState extends State<DoctorDashboard> {
               const SizedBox(height: 4),
               Text(
                 title,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -340,13 +417,8 @@ class _DoctorDashboardState extends State<DoctorDashboard> {
                 lineBarsData: [
                   LineChartBarData(
                     spots: const [
-                      FlSpot(0, 3),
-                      FlSpot(1, 4),
-                      FlSpot(2, 3.5),
-                      FlSpot(3, 5),
-                      FlSpot(4, 4),
-                      FlSpot(5, 6),
-                      FlSpot(6, 5.5),
+                      FlSpot(0, 3), FlSpot(1, 4), FlSpot(2, 3.5),
+                      FlSpot(3, 5), FlSpot(4, 4), FlSpot(5, 6), FlSpot(6, 5.5),
                     ],
                     isCurved: true,
                     color: AppColors.primary,
@@ -398,39 +470,9 @@ class _DoctorDashboardState extends State<DoctorDashboard> {
                 sectionsSpace: 0,
                 centerSpaceRadius: 60,
                 sections: [
-                  PieChartSectionData(
-                    color: AppColors.error,
-                    value: 30,
-                    title: '30%',
-                    radius: 50,
-                    titleStyle: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.white,
-                    ),
-                  ),
-                  PieChartSectionData(
-                    color: AppColors.warning,
-                    value: 50,
-                    title: '50%',
-                    radius: 50,
-                    titleStyle: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.white,
-                    ),
-                  ),
-                  PieChartSectionData(
-                    color: AppColors.success,
-                    value: 20,
-                    title: '20%',
-                    radius: 50,
-                    titleStyle: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.white,
-                    ),
-                  ),
+                  PieChartSectionData(color: AppColors.error, value: 30, title: '30%', radius: 50, titleStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.white)),
+                  PieChartSectionData(color: AppColors.warning, value: 50, title: '50%', radius: 50, titleStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.white)),
+                  PieChartSectionData(color: AppColors.success, value: 20, title: '20%', radius: 50, titleStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.white)),
                 ],
               ),
             ),

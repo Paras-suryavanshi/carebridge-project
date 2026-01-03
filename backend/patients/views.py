@@ -1,14 +1,11 @@
-from django.http import JsonResponse
+from rest_framework import viewsets
+from .models import PatientProfile, VitalSign
+from .serializers import PatientProfileSerializer, VitalSignSerializer
 
-def patient_vitals(request):
-    # API PART 
-    return JsonResponse({"message": "Vitals API placeholder"})
+class PatientViewSet(viewsets.ModelViewSet):
+    queryset = PatientProfile.objects.all()
+    serializer_class = PatientProfileSerializer
 
-def patient_medications(request):
-    # API PART 
-    return JsonResponse({"message": "Medications API placeholder"})
-
-def patient_alerts(request):
-    # API PART
-    # Fetch alerts for patient
-    return JsonResponse({"message": "Alerts API placeholder"})
+class VitalSignViewSet(viewsets.ModelViewSet):
+    queryset = VitalSign.objects.all()
+    serializer_class = VitalSignSerializer
