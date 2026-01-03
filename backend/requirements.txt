@@ -15,3 +15,5 @@ google-generativeai             # Required for Gemini Chat and Clinical Summarie
 
 # --- Deployment (Render) ---
 gunicorn               # Required! This is the production server Render uses to run Django
+dj-database-url        # To parse the database URL Render gives us
+psycopg2-binary        # The adapter for PostgreSQL
