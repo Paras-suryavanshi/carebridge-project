@@ -4,7 +4,7 @@ import '../models/vital_signs_model.dart';
 
 class PatientService {
   // Use 127.0.0.1 for Web, 10.0.2.2 for Android Emulator
-  static const String baseUrl = 'http://127.0.0.1:8000/api/patients';
+  static const String baseUrl = 'https://carebridge-backend-42d7.onrender.com/api/patients';
 
   // Fetch Profile (Mood, Status, Basic Info)
   // We use ID 1 for the hackathon demo

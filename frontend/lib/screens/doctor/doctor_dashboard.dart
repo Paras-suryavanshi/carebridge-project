@@ -34,7 +34,7 @@ class _DoctorDashboardState extends State<DoctorDashboard> {
     try {
       // Use 127.0.0.1 for Web, 10.0.2.2 for Android Emulator
       final response = await http.get(
-        Uri.parse('http://127.0.0.1:8000/api/communication/summary/1/'),
+        Uri.parse('https://carebridge-backend-42d7.onrender.com/api/communication/summary/1/'),
       );
 
       if (response.statusCode == 200) {

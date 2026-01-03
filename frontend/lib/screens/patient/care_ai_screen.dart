@@ -88,7 +88,11 @@ class _CareAIScreenState extends State<CareAIScreen>
       // If using Android Emulator, use 'http://10.0.2.2:8000/api/communication/chat/'
       // If using Web/iOS/Physical Device, use 'http://YOUR_PC_IP_ADDRESS:8000/api/communication/chat/'
       // For local browser testing:
-      const String apiUrl = 'http://127.0.0.1:8000/api/communication/chat/';
+      const String apiUrl = // OLD:
+// const String apiUrl = 'http://127.0.0.1:8000/api/communication/transcribe/';
+
+// NEW:
+const String apiUrl = 'https://carebridge-backend-42d7.onrender.com/api/communication/transcribe/';
 
       // 3. Send Request to Django
       final response = await http.post(
@@ -198,7 +202,7 @@ class _CareAIScreenState extends State<CareAIScreen>
     try {
       // 1. Define Backend URL
       // Use 127.0.0.1 for Web, 10.0.2.2 for Android Emulator
-      const String apiUrl = 'http://127.0.0.1:8000/api/communication/transcribe/';
+      const String apiUrl = 'https://carebridge-backend-42d7.onrender.com/api/communication/transcribe/';
       
       var uri = Uri.parse(apiUrl); 
       var request = http.MultipartRequest('POST', uri);
