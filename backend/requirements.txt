@@ -11,8 +11,8 @@ python-dotenv          # Required to read .env files for API keys
 
 # --- AI & Speech Services ---
 azure-cognitiveservices-speech  # Required for your Voice-to-Text feature
-google-generativeai            # Required for Gemini Chat and Clinical Summaries
-azure-ai-textanalytics        # Required for Sentiment Analysis
+google-generativeai             # Required for Gemini Chat and Clinical Summaries
+
 # --- Deployment (Render) ---
 gunicorn               # Required! This is the production server Render uses to run Django
 dj-database-url        # To parse the database URL Render gives us
