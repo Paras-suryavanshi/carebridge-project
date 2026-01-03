@@ -251,6 +251,7 @@ def setup_database(request):
         PatientProfile.objects.create(
             user=user,
             caregiver_name="Mom",
+            medical_conditions="None",
             current_status="Stable",
             current_mood="Happy"
         )
